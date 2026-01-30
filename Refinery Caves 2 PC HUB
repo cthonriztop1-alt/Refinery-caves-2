@@ -140,7 +140,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 --==================================================
--- Auto Fish（RC2 原版 · 完整照抄）
+-- Auto Fish
 --==================================================
 local ChangeFishPull = ReplicatedStorage
     :WaitForChild("Events")
