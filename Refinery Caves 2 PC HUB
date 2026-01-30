@@ -4,7 +4,10 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 --==================================================
@@ -22,9 +25,10 @@ local Window = Rayfield:CreateWindow({
 local VoidTab = Window:CreateTab("黑洞", 4483362458)
 local ESPTab  = Window:CreateTab("ESP", 4483362458)
 local ToolTab = Window:CreateTab("工具", 4483362458)
+local FishTab = Window:CreateTab("钓鱼", 4483362458)
 
 --==================================================
--- 黑洞系统（原逻辑，未改）
+-- 黑洞系统（保持不变）
 --==================================================
 local state = {
     active = false,
@@ -71,9 +75,7 @@ end
 VoidTab:CreateToggle({
     Name = "黑洞 (F)",
     CurrentValue = false,
-    Callback = function(v)
-        state.active = v
-    end
+    Callback = function(v) state.active = v end
 })
 
 VoidTab:CreateSlider({
@@ -113,7 +115,8 @@ RunService.Heartbeat:Connect(function()
         params.FilterType = Enum.RaycastFilterType.Exclude
 
         for _,p in ipairs(workspace:GetPartBoundsInRadius(hrp.Position,state.radius,params)) do
-            if p:IsA("BasePart") and not p.Anchored
+            if p:IsA("BasePart")
+            and not p.Anchored
             and not p.Parent:FindFirstChildOfClass("Humanoid")
             and not state.locked[p] then
                 state.locked[p] = true
@@ -136,129 +139,55 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-UserInputService.InputBegan:Connect(function(i,g)
-    if g then return end
-    if i.KeyCode == Enum.KeyCode.F then
-        state.active = not state.active
-    elseif i.KeyCode == Enum.KeyCode.C then
-        releaseAll()
-    end
-end)
-
 --==================================================
--- ESP 内核（重写，防掉帧）
+-- Auto Fish（RC2 原版 · 完整照抄）
 --==================================================
-local ESPEnabled = false
-local ESPRange = 1500
-local ESP_CACHE = {}
+local ChangeFishPull = ReplicatedStorage
+    :WaitForChild("Events")
+    :WaitForChild("Tools")
+    :WaitForChild("ChangeFishPull")
 
-local AlwaysESP = { Meteorite = true }
+local AutoFishEnabled = false
+local AutoFishThread
 
-local Targets = {
-    ["Meteorite"]=true,["Magma"]=true,["Odd Stone"]=true,["Weeping Soul"]=true,
-    ["Jade"]=true,["Crimsone"]=true,["Emerald"]=true,["Diamond"]=true,
-    ["Pink Diamond"]=true,["Cobalt"]=true,["Wildcore"]=true,["Voltshard"]=true,
-    ["Blastshard"]=true,["Obsidian"]=true,["Volcanium"]=true,["Abyssalite"]=true,
-    ["Atlas Tree"]=true,["Nightshade"]=true,["Silverwood"]=true,
-    ["Goldwood"]=true,["Orewood"]=true,["Glacial"]=true,
-    ["Ancient Rune"]=true
-}
-
-local function getColor(name)
-    if name == "Meteorite" then return Color3.fromRGB(255,0,0) end
-    if name == "Diamond" or name == "Pink Diamond" then
-        return Color3.fromRGB(0,255,255)
-    end
-    return Color3.fromRGB(0,255,0)
-end
-
-local function createESP(model, part, color)
-    local hl = Instance.new("Highlight")
-    hl.Adornee = model
-    hl.FillColor = color
-    hl.OutlineColor = color
-    hl.Parent = Camera
-
-    local bb = Instance.new("BillboardGui")
-    bb.Adornee = part
-    bb.Size = UDim2.new(0,200,0,40)
-    bb.StudsOffset = Vector3.new(0,3,0)
-    bb.AlwaysOnTop = true
-    bb.Parent = part
-
-    local txt = Instance.new("TextLabel", bb)
-    txt.Size = UDim2.new(1,0,1,0)
-    txt.BackgroundTransparency = 1
-    txt.Text = model.Name
-    txt.TextColor3 = color
-    txt.TextStrokeTransparency = 0
-    txt.TextScaled = true
-    txt.Font = Enum.Font.SourceSansBold
-
-    ESP_CACHE[model] = {
-        Part = part,
-        Highlight = hl,
-        Billboard = bb
-    }
-end
-
---==================================================
--- ESP 扫描（每 6 秒一次）
---==================================================
-task.spawn(function()
-    while true do
-        task.wait(6)
-
-        if not ESPEnabled then continue end
-
-        local ws = workspace:FindFirstChild("WorldSpawn")
-        if not ws then continue end
-
-        for _,obj in ipairs(ws:GetDescendants()) do
-            if Targets[obj.Name] then
-                local model = obj:IsA("Model") and obj or obj.Parent
-                if model and not ESP_CACHE[model] then
-                    local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-                    if part then
-                        createESP(model, part, getColor(obj.Name))
-                    end
-                end
-            end
-        end
-    end
-end)
-
---==================================================
--- ESP 显示刷新（0.25 秒一次，防掉帧）
---==================================================
-task.spawn(function()
-    while true do
-        task.wait(0.25)
-
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if not hrp then continue end
-
-        for model,data in pairs(ESP_CACHE) do
-            if not model or not model.Parent then
-                data.Highlight:Destroy()
-                data.Billboard:Destroy()
-                ESP_CACHE[model] = nil
-            else
-                local dist = (data.Part.Position - hrp.Position).Magnitude
-                local on = ESPEnabled and (AlwaysESP[model.Name] or dist <= ESPRange)
-                data.Highlight.Enabled = on
-                data.Billboard.Enabled = on
-            end
-        end
-    end
-end)
-
-ESPTab:CreateToggle({
-    Name = "ESP 显示",
+FishTab:CreateToggle({
+    Name = "自动钓鱼（原版）",
     CurrentValue = false,
     Callback = function(v)
-        ESPEnabled = v
+        AutoFishEnabled = v
+
+        if v then
+            AutoFishThread = task.spawn(function()
+                while AutoFishEnabled do
+                    local gui = PlayerGui:FindFirstChild("UserGui")
+                    if not gui then task.wait() continue end
+
+                    local catchFrame = gui:FindFirstChild("CatchFrame")
+                    if not catchFrame or not catchFrame.Visible then
+                        task.wait()
+                        continue
+                    end
+
+                    local fish = catchFrame:FindFirstChild("Fish")
+                    if not fish then task.wait() continue end
+
+                    local rotation = math.floor(fish.Rotation % 360)
+                    if rotation < 0 then rotation += 360 end
+
+                    if rotation == 0 then
+                        ChangeFishPull:FireServer({Side = "Left"})
+                    elseif rotation == 90 then
+                        ChangeFishPull:FireServer({Side = "Top"})
+                    elseif rotation == 180 then
+                        ChangeFishPull:FireServer({Side = "Right"})
+                    elseif rotation == 270 then
+                        ChangeFishPull:FireServer({Side = "Bottom"})
+                    end
+
+                    task.wait()
+                end
+            end)
+        end
     end
 })
 
@@ -268,13 +197,17 @@ ESPTab:CreateToggle({
 ToolTab:CreateButton({
     Name = "飞行 (Q)",
     Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"
+        ))()
     end
 })
 
 ToolTab:CreateButton({
     Name = "Infinite Yield",
     Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"
+        ))()
     end
 })
