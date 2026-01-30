@@ -1,0 +1,185 @@
+--==================================================
+-- Services
+--==================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+--==================================================
+-- Orion UI（手机友好）
+--==================================================
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+
+local Window = OrionLib:MakeWindow({
+    Name = "Elite Controller",
+    HidePremium = true,
+    SaveConfig = false,
+    IntroEnabled = true,
+    IntroText = "Elite Controller"
+})
+
+local VoidTab = Window:MakeTab({Name="黑洞",Icon="rbxassetid://4483362458"})
+local ESPTab  = Window:MakeTab({Name="ESP",Icon="rbxassetid://4483362458"})
+local FishTab = Window:MakeTab({Name="钓鱼",Icon="rbxassetid://4483362458"})
+local ToolTab = Window:MakeTab({Name="工具",Icon="rbxassetid://4483362458"})
+
+--==================================================
+-- 黑洞系统（原样）
+--==================================================
+local state = {active=false,radius=35,distance=10,locked={}}
+
+local function getSys()
+    local f = workspace:FindFirstChild("Elite_Void") or Instance.new("Folder",workspace)
+    f.Name="Elite_Void"
+
+    local a = f:FindFirstChild("Anchor") or Instance.new("Part",f)
+    a.Name="Anchor"
+    a.Anchored=true
+    a.CanCollide=false
+    a.Transparency=1
+
+    local v = f:FindFirstChild("Visual") or Instance.new("Part",f)
+    v.Name="Visual"
+    v.Anchored=true
+    v.CanCollide=false
+    v.Material=Enum.Material.ForceField
+    v.Color=Color3.fromRGB(0,255,255)
+    v.Transparency=1
+
+    return a,v
+end
+
+local Anchor,Visual=getSys()
+
+local function releaseAll()
+    state.active=false
+    for p in pairs(state.locked) do
+        if p and p.Parent then
+            local bp=p:FindFirstChild("EliteForce")
+            if bp then bp:Destroy() end
+            p.CanCollide=true
+        end
+    end
+    table.clear(state.locked)
+end
+
+VoidTab:AddToggle({
+    Name="黑洞",
+    Default=false,
+    Callback=function(v) state.active=v end
+})
+
+VoidTab:AddSlider({
+    Name="半径",
+    Min=5,Max=500,Default=35,Increment=5,
+    Callback=function(v) state.radius=v end
+})
+
+VoidTab:AddSlider({
+    Name="距离",
+    Min=0,Max=100,Default=10,Increment=5,
+    Callback=function(v) state.distance=v end
+})
+
+VoidTab:AddButton({
+    Name="全部释放",
+    Callback=releaseAll
+})
+
+RunService.Heartbeat:Connect(function()
+    local hrp=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if state.active then
+        Visual.Transparency=0.8
+        Visual.Size=Vector3.one*state.radius*2
+        Visual.CFrame=hrp.CFrame
+        Anchor.CFrame=hrp.CFrame*CFrame.new(0,0,-state.distance)
+
+        local params=OverlapParams.new()
+        params.FilterDescendantsInstances={LocalPlayer.Character,Visual.Parent}
+        params.FilterType=Enum.RaycastFilterType.Exclude
+
+        for _,p in ipairs(workspace:GetPartBoundsInRadius(hrp.Position,state.radius,params)) do
+            if p:IsA("BasePart") and not p.Anchored
+            and not p.Parent:FindFirstChildOfClass("Humanoid")
+            and not state.locked[p] then
+                state.locked[p]=true
+                p.CanCollide=false
+            end
+        end
+
+        for p in pairs(state.locked) do
+            if p and p.Parent then
+                local bp=p:FindFirstChild("EliteForce") or Instance.new("BodyPosition",p)
+                bp.Name="EliteForce"
+                bp.MaxForce=Vector3.one*9e9
+                bp.P=15000
+                bp.D=400
+                bp.Position=Anchor.Position
+            end
+        end
+    else
+        Visual.Transparency=1
+    end
+end)
+
+--==================================================
+-- 自动钓鱼（RC2 原版逻辑）
+--==================================================
+local ChangeFishPull=ReplicatedStorage.Events.Tools.ChangeFishPull
+local AutoFish=false
+
+FishTab:AddToggle({
+    Name="自动钓鱼",
+    Default=false,
+    Callback=function(v)
+        AutoFish=v
+        if v then
+            task.spawn(function()
+                while AutoFish do
+                    local gui=PlayerGui:FindFirstChild("UserGui")
+                    local frame=gui and gui:FindFirstChild("CatchFrame")
+                    local fish=frame and frame.Visible and frame:FindFirstChild("Fish")
+                    if fish then
+                        local r=math.floor(fish.Rotation%360)
+                        if r==0 then ChangeFishPull:FireServer({Side="Left"})
+                        elseif r==90 then ChangeFishPull:FireServer({Side="Top"})
+                        elseif r==180 then ChangeFishPull:FireServer({Side="Right"})
+                        elseif r==270 then ChangeFishPull:FireServer({Side="Bottom"})
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
+
+--==================================================
+-- 工具
+--==================================================
+ToolTab:AddButton({
+    Name="飞行",
+    Callback=function()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"
+        ))()
+    end
+})
+
+ToolTab:AddButton({
+    Name="Infinite Yield",
+    Callback=function()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"
+        ))()
+    end
+})
+
+OrionLib:Init()
