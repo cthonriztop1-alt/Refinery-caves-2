@@ -1,0 +1,257 @@
+--==================================================
+-- Services
+--==================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+--==================================================
+-- Rayfield UI
+--==================================================
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Elite Controller",
+    LoadingTitle = "Elite Controller",
+    LoadingSubtitle = "Stable Build",
+    ConfigurationSaving = { Enabled = false }
+})
+
+local VoidTab = Window:CreateTab("黑洞", 4483362458)
+local ESPTab  = Window:CreateTab("ESP", 4483362458)
+local ToolTab = Window:CreateTab("工具", 4483362458)
+
+--==================================================
+-- 黑洞系统
+--==================================================
+local state = {
+    active = false,
+    radius = 35,
+    distance = 10,
+    locked = {}
+}
+
+local function getSys()
+    local f = workspace:FindFirstChild("Elite_Void") or Instance.new("Folder", workspace)
+    f.Name = "Elite_Void"
+
+    local a = f:FindFirstChild("Anchor") or Instance.new("Part", f)
+    a.Name = "Anchor"
+    a.Anchored = true
+    a.CanCollide = false
+    a.Transparency = 1
+
+    local v = f:FindFirstChild("Visual") or Instance.new("Part", f)
+    v.Name = "Visual"
+    v.Anchored = true
+    v.CanCollide = false
+    v.Material = Enum.Material.ForceField
+    v.Color = Color3.fromRGB(0,255,255)
+    v.Transparency = 1
+
+    return a,v
+end
+
+local Anchor, Visual = getSys()
+
+local function releaseAll()
+    state.active = false
+    for p in pairs(state.locked) do
+        if p and p.Parent then
+            local bp = p:FindFirstChild("EliteForce")
+            if bp then bp:Destroy() end
+            p.CanCollide = true
+        end
+    end
+    table.clear(state.locked)
+end
+
+VoidTab:CreateToggle({
+    Name = "黑洞 (F)",
+    CurrentValue = false,
+    Callback = function(v)
+        state.active = v
+    end
+})
+
+VoidTab:CreateSlider({
+    Name = "半径",
+    Range = {5,500},
+    Increment = 5,
+    CurrentValue = state.radius,
+    Callback = function(v) state.radius = v end
+})
+
+VoidTab:CreateSlider({
+    Name = "距离",
+    Range = {0,100},
+    Increment = 5,
+    CurrentValue = state.distance,
+    Callback = function(v) state.distance = v end
+})
+
+VoidTab:CreateButton({
+    Name = "全部释放 (C)",
+    Callback = releaseAll
+})
+
+RunService.Heartbeat:Connect(function()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if state.active then
+        Visual.Transparency = 0.8
+        Visual.Size = Vector3.one * state.radius * 2
+        Visual.CFrame = hrp.CFrame
+        Anchor.CFrame = hrp.CFrame * CFrame.new(0,0,-state.distance)
+
+        local params = OverlapParams.new()
+        params.FilterDescendantsInstances = {char, Visual.Parent}
+        params.FilterType = Enum.RaycastFilterType.Exclude
+
+        for _,p in ipairs(workspace:GetPartBoundsInRadius(hrp.Position,state.radius,params)) do
+            if p:IsA("BasePart") and not p.Anchored
+            and not p.Parent:FindFirstChildOfClass("Humanoid")
+            and not state.locked[p] then
+                state.locked[p] = true
+                p.CanCollide = false
+            end
+        end
+
+        for p in pairs(state.locked) do
+            if p and p.Parent then
+                local bp = p:FindFirstChild("EliteForce") or Instance.new("BodyPosition",p)
+                bp.Name = "EliteForce"
+                bp.MaxForce = Vector3.one * 9e9
+                bp.P = 15000
+                bp.D = 400
+                bp.Position = Anchor.Position
+            end
+        end
+    else
+        Visual.Transparency = 1
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(i,g)
+    if g then return end
+    if i.KeyCode == Enum.KeyCode.F then
+        state.active = not state.active
+    elseif i.KeyCode == Enum.KeyCode.C then
+        releaseAll()
+    end
+end)
+
+--==================================================
+-- ESP（高亮 + 名字）
+--==================================================
+local ESPEnabled = false
+local ESPRange = 1500
+local highlights = {}
+
+local AlwaysESP = { Meteorite = true }
+
+local Targets = {
+    ["Meteorite"]=true,["Magma"]=true,["Odd Stone"]=true,["Weeping Soul"]=true,
+    ["Jade"]=true,["Crimsone"]=true,["Emerald"]=true,["Diamond"]=true,
+    ["Pink Diamond"]=true,["Cobalt"]=true,["Wildcore"]=true,["Voltshard"]=true,
+    ["Blastshard"]=true,["Obsidian"]=true,["Volcanium"]=true,["Abyssalite"]=true,
+    ["Atlas Tree"]=true,["Nightshade"]=true,["Silverwood"]=true,
+    ["Goldwood"]=true,["Orewood"]=true,["Glacial"]=true,
+    ["Ancient Rune"]=true
+}
+
+local function getColor(name)
+    if name=="Meteorite" then return Color3.fromRGB(255,0,0) end
+    if name=="Diamond" or name=="Pink Diamond" then
+        return Color3.fromRGB(0,255,255)
+    end
+    return Color3.fromRGB(0,255,0)
+end
+
+local function addName(model,color)
+    local part = model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")) or model
+    if not part or part:FindFirstChild("ESP_Name") then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESP_Name"
+    bb.Adornee = part
+    bb.Size = UDim2.new(0,200,0,40)
+    bb.StudsOffset = Vector3.new(0,3,0)
+    bb.AlwaysOnTop = true
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Text = model.Name
+    txt.TextColor3 = color
+    txt.TextStrokeTransparency = 0
+    txt.Font = Enum.Font.SourceSansBold
+    txt.TextScaled = true
+    txt.Parent = bb
+
+    bb.Parent = part
+end
+
+local function updateESP()
+    for _,h in pairs(highlights) do h:Destroy() end
+    table.clear(highlights)
+
+    if not ESPEnabled then return end
+    local ws = workspace:FindFirstChild("WorldSpawn")
+    if not ws then return end
+
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _,obj in ipairs(ws:GetDescendants()) do
+        if Targets[obj.Name] then
+            local model = obj:IsA("Model") and obj or obj.Parent
+            local part = model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart"))
+            if part then
+                local dist = (part.Position-hrp.Position).Magnitude
+                if AlwaysESP[obj.Name] or dist <= ESPRange then
+                    local color = getColor(obj.Name)
+                    local hl = Instance.new("Highlight")
+                    hl.FillColor = color
+                    hl.OutlineColor = color
+                    hl.Adornee = model
+                    hl.Parent = Camera
+                    table.insert(highlights,hl)
+                    addName(model,color)
+                end
+            end
+        end
+    end
+end
+
+ESPTab:CreateToggle({
+    Name = "ESP 显示",
+    CurrentValue = false,
+    Callback = function(v)
+        ESPEnabled = v
+        updateESP()
+    end
+})
+
+RunService.Heartbeat:Connect(updateESP)
+
+--==================================================
+-- 工具
+--==================================================
+ToolTab:CreateButton({
+    Name = "飞行 (Q)",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+    end
+})
+
+ToolTab:CreateButton({
+    Name = "Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end
+})
