@@ -1,1 +1,175 @@
+-- 手机版攻击模式切换器 v1.0 (Alpha 修改版)
+-- 模式 1 已修改为无穷大
 
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- 创建主屏幕GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MobileAttackSwitcher"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 10
+
+-- 创建浮动控制按钮
+local FloatButton = Instance.new("TextButton")
+FloatButton.Size = UDim2.new(0, 60, 0, 60)
+FloatButton.Position = UDim2.new(1, -70, 1, -150)
+FloatButton.BackgroundColor3 = Color3.fromRGB(40, 120, 200)
+FloatButton.BackgroundTransparency = 0.2
+FloatButton.Text = "⚔"
+FloatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatButton.Font = Enum.Font.GothamBold
+FloatButton.TextSize = 24
+FloatButton.BorderSizePixel = 2
+FloatButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+FloatButton.AutoButtonColor = true
+
+-- 创建主控制面板
+local MainPanel = Instance.new("Frame")
+MainPanel.Size = UDim2.new(0, 250, 0, 350)
+MainPanel.Position = UDim2.new(1, -260, 0.5, -175)
+MainPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MainPanel.BackgroundTransparency = 0.1
+MainPanel.BorderSizePixel = 2
+MainPanel.BorderColor3 = Color3.fromRGB(60, 60, 80)
+MainPanel.Visible = false
+
+-- 标题栏
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+TitleBar.BorderSizePixel = 0
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "攻击模式切换"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+
+-- 关闭按钮
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 40, 0, 40)
+CloseButton.Position = UDim2.new(1, -45, 0.5, -20)
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+CloseButton.Text = "×"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 24
+
+-- 模式1按钮 (Alpha 已改为无穷大)
+local Mode1Button = Instance.new("TextButton")
+Mode1Button.Size = UDim2.new(0.8, 0, 0, 80)
+Mode1Button.Position = UDim2.new(0.1, 0, 0.2, 0)
+Mode1Button.BackgroundColor3 = Color3.fromRGB(60, 140, 220)
+Mode1Button.Text = "模式 1\nAlpha = ∞"
+Mode1Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Mode1Button.Font = Enum.Font.GothamBold
+Mode1Button.TextSize = 18
+Mode1Button.TextWrapped = true
+
+-- 模式2按钮
+local Mode2Button = Instance.new("TextButton")
+Mode2Button.Size = UDim2.new(0.8, 0, 0, 80)
+Mode2Button.Position = UDim2.new(0.1, 0, 0.45, 0)
+Mode2Button.BackgroundColor3 = Color3.fromRGB(220, 100, 80)
+Mode2Button.Text = "模式 2\nAlpha = 0.65"
+Mode2Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Mode2Button.Font = Enum.Font.GothamBold
+Mode2Button.TextSize = 18
+Mode2Button.TextWrapped = true
+
+-- 停止按钮
+local StopButton = Instance.new("TextButton")
+StopButton.Size = UDim2.new(0.8, 0, 0, 60)
+StopButton.Position = UDim2.new(0.1, 0, 0.7, 0)
+StopButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+StopButton.Text = "停止攻击"
+StopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopButton.Font = Enum.Font.GothamBold
+StopButton.TextSize = 18
+
+-- 状态显示
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0.8, 0, 0, 40)
+StatusLabel.Position = UDim2.new(0.1, 0, 0.9, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "状态: 已停止"
+StatusLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 14
+
+-- 组装UI
+ScreenGui.Parent = PlayerGui
+FloatButton.Parent = ScreenGui
+MainPanel.Parent = ScreenGui
+TitleBar.Parent = MainPanel
+Title.Parent = TitleBar
+CloseButton.Parent = TitleBar
+Mode1Button.Parent = MainPanel
+Mode2Button.Parent = MainPanel
+StopButton.Parent = MainPanel
+StatusLabel.Parent = MainPanel
+
+-- 攻击循环逻辑
+local isAttacking = false
+local currentMode = nil
+local attackThread = nil
+
+local function updateButtonStates()
+    if currentMode == 1 then
+        StatusLabel.Text = "状态: 模式1运行中 (∞)"
+    elseif currentMode == 2 then
+        StatusLabel.Text = "状态: 模式2运行中 (0.65)"
+    else
+        StatusLabel.Text = "状态: 已停止"
+    end
+end
+
+local function startAttack(mode)
+    if attackThread then
+        isAttacking = false
+        task.wait(0.1)
+    end
+    
+    currentMode = mode
+    isAttacking = true
+    updateButtonStates()
+    
+    attackThread = task.spawn(function()
+        local event = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("Attack")
+        while isAttacking and currentMode == mode do
+            local alphaVal = (mode == 1) and math.huge or 0.65 -- 这里改成了 math.huge (无穷大)
+            local args = {{Alpha = alphaVal, ResponseTime = 0}}
+            
+            pcall(function()
+                event:FireServer(unpack(args))
+            end)
+            task.wait()
+        end
+    end)
+end
+
+local function stopAttack()
+    isAttacking = false
+    currentMode = nil
+    updateButtonStates()
+end
+
+-- 交互事件
+Mode1Button.MouseButton1Click:Connect(function()
+    if currentMode ~= 1 then startAttack(1) else stopAttack() end
+end)
+
+Mode2Button.MouseButton1Click:Connect(function()
+    if currentMode ~= 2 then startAttack(2) else stopAttack() end
+end)
+
+StopButton.MouseButton1Click:Connect(stopAttack)
+FloatButton.MouseButton1Click:Connect(function() MainPanel.Visible = not MainPanel.Visible end)
+CloseButton.MouseButton1Click:Connect(function() MainPanel.Visible = false end)
+
+print("手机版攻击切换器已加载 - 模式1 Alpha 为无穷大")
