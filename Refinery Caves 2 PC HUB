@@ -3,9 +3,7 @@
 --==================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
@@ -28,7 +26,101 @@ local ToolTab = Window:CreateTab("工具", 4483362458)
 local FishTab = Window:CreateTab("钓鱼", 4483362458)
 
 --==================================================
--- 黑洞系统（保持不变）
+-- ESP（高亮 + 名字）
+--==================================================
+local ESPEnabled = false
+local ESPRange = 1500
+local highlights = {}
+local lastESPUpdate = tick()  -- 记录上次更新ESP的时间
+
+local Targets = {
+    ["Meteorite"] = true, ["Magma"] = true, ["Odd Stone"] = true, ["Weeping Soul"] = true,
+    ["Jade"] = true, ["Crimsone"] = true, ["Emerald"] = true, ["Diamond"] = true,
+    ["Pink Diamond"] = true, ["Cobalt"] = true, ["Wildcore"] = true, ["Voltshard"] = true,
+    ["Blastshard"] = true, ["Obsidian"] = true, ["Volcanium"] = true, ["Abyssalite"] = true,
+    ["Atlas Tree"] = true, ["Nightshade"] = true, ["Silverwood"] = true,
+    ["Goldwood"] = true, ["Orewood"] = true, ["Glacial"] = true,
+    ["Ancient Rune"] = true
+}
+
+local function getColor(name)
+    if name == "Meteorite" then return Color3.fromRGB(255, 0, 0) end
+    if name == "Diamond" or name == "Pink Diamond" then
+        return Color3.fromRGB(0, 255, 255)
+    end
+    return Color3.fromRGB(0, 255, 0)
+end
+
+local function updateESP()
+    -- 每6秒更新一次ESP
+    if tick() - lastESPUpdate < 6 then
+        return
+    end
+    lastESPUpdate = tick()
+
+    -- 清理当前的ESP高亮
+    for _, h in pairs(highlights) do
+        h:Destroy()
+    end
+    table.clear(highlights)
+
+    -- 如果ESP未启用，则跳过
+    if not ESPEnabled then return end
+    local ws = workspace:FindFirstChild("WorldSpawn")
+    if not ws then return end
+
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, obj in ipairs(ws:GetDescendants()) do
+        if Targets[obj.Name] then
+            local model = obj:IsA("Model") and obj or obj.Parent
+            local part = model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart"))
+            if part then
+                local dist = (part.Position - hrp.Position).Magnitude
+                if dist <= ESPRange then
+                    local hl = Instance.new("Highlight")
+                    hl.FillColor = getColor(obj.Name)
+                    hl.OutlineColor = getColor(obj.Name)
+                    hl.Adornee = model
+                    hl.Parent = Camera
+                    table.insert(highlights, hl)
+
+                    local bb = Instance.new("BillboardGui")
+                    bb.Adornee = part
+                    bb.Size = UDim2.new(0, 200, 0, 40)
+                    bb.StudsOffset = Vector3.new(0, 3, 0)
+                    bb.AlwaysOnTop = true
+                    bb.Parent = part
+
+                    local txt = Instance.new("TextLabel")
+                    txt.Size = UDim2.new(1, 0, 1, 0)
+                    txt.BackgroundTransparency = 1
+                    txt.Text = model.Name
+                    txt.TextColor3 = getColor(obj.Name)
+                    txt.TextStrokeTransparency = 0
+                    txt.Font = Enum.Font.SourceSansBold
+                    txt.TextSize = 18
+                    txt.Parent = bb
+                end
+            end
+        end
+    end
+end
+
+ESPTab:CreateToggle({
+    Name = "ESP 显示",
+    CurrentValue = false,
+    Callback = function(v)
+        ESPEnabled = v
+        updateESP()  -- 启用时立即更新
+    end
+})
+
+RunService.Heartbeat:Connect(updateESP)
+
+--==================================================
+-- 黑洞系统
 --==================================================
 local state = {
     active = false,
