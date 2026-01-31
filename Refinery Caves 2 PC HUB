@@ -1,4 +1,4 @@
--- [[ Elite Controller - V10.47 | MMMMMMM出品 | 物理增强 & 完整功能版 ]]
+-- [[ Elite Controller - V10.52 | MMMMMMM出品 | 路径锁定: WorldSpawn ]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,12 +20,12 @@ local state = {
 
 local BhToggle
 
--- ================= UI 初始化 (已修改出品信息) =================
+-- ================= UI 初始化 =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
-    Name = "Elite Controller V10.47",
+    Name = "Elite Controller V10.52",
     LoadingTitle = "MMMMMMM出品",
-    LoadingSubtitle = "防炸矿修复 | 新增 Zan Flower",
+    LoadingSubtitle = "ESP 已锁定 WorldSpawn 路径",
     ConfigurationSaving = { Enabled = false }
 })
 
@@ -34,7 +34,7 @@ local ESPTab  = Window:CreateTab("透视", 4483362458)
 local FishTab = Window:CreateTab("钓鱼", 4483362458)
 local ToolTab = Window:CreateTab("工具", 4483362458)
 
--- ================= 1. 黑洞核心逻辑 (防掉落修复) =================
+-- ================= 1. 黑洞逻辑 (保持不变) =================
 local RangeVisual = Instance.new("Part")
 RangeVisual.Anchored = true; RangeVisual.CanCollide = false; RangeVisual.Material = Enum.Material.ForceField
 RangeVisual.Color = Color3.fromRGB(255, 0, 0); RangeVisual.Transparency = 1; RangeVisual.Parent = workspace
@@ -68,7 +68,7 @@ RunService.Heartbeat:Connect(function()
     local alignRot = CFrame.lookAt(state.lockPosition, state.lockPosition + hrp.CFrame.LookVector)
     for p, _ in pairs(state.lockedParts) do
         if p and p.Parent and not p.Anchored then
-            p.CanCollide = false -- 核心修复：吸附中关闭物理碰撞
+            p.CanCollide = false
             local bp = p:FindFirstChild("EliteForce") or Instance.new("BodyPosition", p)
             bp.Name = "EliteForce"; bp.MaxForce = Vector3.one * 9e9; bp.P = 15000; bp.D = 600; bp.Position = state.lockPosition
             local bg = p:FindFirstChild("EliteGyro") or Instance.new("BodyGyro", p)
@@ -97,7 +97,7 @@ task.spawn(function()
     end
 end)
 
--- ================= 2. 精准 ESP (含 Zan Flower) =================
+-- ================= 2. 精准 ESP (限定 WorldSpawn) =================
 local ESP_COLORS = {
     Meteorite = Color3.fromRGB(255,0,0), Wildcore = Color3.fromRGB(255,0,255),
     Abyssalite = Color3.fromRGB(60,60,60), Obsidian = Color3.fromRGB(90,0,130),
@@ -123,28 +123,36 @@ task.spawn(function()
     while true do
         if state.espEnabled then
             local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if not state.espEnabled then break end
-                local color = ESP_COLORS[obj.Name]
-                if color and hrp then
-                    local model = obj:IsA("Model") and obj or obj.Parent
-                    local root = model:FindFirstChildWhichIsA("BasePart")
-                    if root then
-                        local dist = (root.Position - hrp.Position).Magnitude
-                        if ESP_GLOBAL[obj.Name] or dist <= ESP_DISTANCE then
-                            createESP(model, obj.Name, color)
+            -- 核心修改：只在 Workspace.WorldSpawn 中进行递归搜索
+            local spawnArea = workspace:FindFirstChild("WorldSpawn")
+            if spawnArea and hrp then
+                for _, obj in ipairs(spawnArea:GetDescendants()) do
+                    if not state.espEnabled then break end
+                    local color = ESP_COLORS[obj.Name]
+                    if color then
+                        local model = obj:IsA("Model") and obj or obj.Parent
+                        local root = model:FindFirstChildWhichIsA("BasePart")
+                        if root then
+                            local dist = (root.Position - hrp.Position).Magnitude
+                            if ESP_GLOBAL[obj.Name] or dist <= ESP_DISTANCE then
+                                createESP(model, obj.Name, color)
+                            end
                         end
                     end
                 end
             end
         else
-            for _, v in ipairs(workspace:GetDescendants()) do if v.Name == "EliteESP" or v.Name == "EliteESPTag" then v:Destroy() end end
+            -- 清理逻辑遍历全图确保清理干净
+            for _, v in ipairs(workspace:GetDescendants()) do 
+                if v.Name == "EliteESP" or v.Name == "EliteESPTag" then v:Destroy() end 
+            end
         end
         task.wait(4)
     end
 end)
 
--- ================= 3. 自动钓鱼 (原始逻辑) =================
+-- ================= 3. 自动钓鱼 & UI 绑定 =================
+-- (保持原有逻辑...)
 local ChangeFishPull = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("ChangeFishPull")
 task.spawn(function()
     while task.wait() do
@@ -166,19 +174,17 @@ task.spawn(function()
     end
 end)
 
--- ================= 4. UI 绑定 =================
 BhToggle = VoidTab:CreateToggle({Name="暴力黑洞 (F)", CurrentValue=false, Callback=function(v) state.bhActive=v end})
 VoidTab:CreateSlider({Name="半径", Range={5,500}, Increment=5, CurrentValue=35, Callback=function(v) state.radius=v end})
 VoidTab:CreateSlider({Name="吸附距离", Range={0,100}, Increment=2, CurrentValue=15, Callback=function(v) state.distance=v end})
 VoidTab:CreateButton({Name="彻底释放 (C)", Callback=releaseAll})
 
-ESPTab:CreateToggle({Name="精准透视 (Zan Flower)", CurrentValue=false, Callback=function(v) state.espEnabled=v end})
+ESPTab:CreateToggle({Name="精准透视 (WorldSpawn)", CurrentValue=false, Callback=function(v) state.espEnabled=v end})
 FishTab:CreateToggle({Name="自动收线", CurrentValue=false, Callback=function(v) state.fishEnabled=v end})
 
 ToolTab:CreateButton({Name="飞行脚本", Callback=function() loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))() end})
 ToolTab:CreateButton({Name="Infinite Yield", Callback=function() loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-v64-90090"))() end})
 
--- 快捷键
 UserInputService.InputBegan:Connect(function(io, g)
     if g then return end
     if io.KeyCode == Enum.KeyCode.F then state.bhActive = not state.bhActive; BhToggle:Set(state.bhActive)
