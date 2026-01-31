@@ -1,56 +1,76 @@
--- [[ 纯净版攻击切换器 - loadstring 兼容格式 ]]
+-- [[ RC2 纯净版攻击切换器 - 仅保留模式 1, 2, 3 ]]
 
-local function StartAttackSwitcher()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local AttackEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("Attack")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AttackEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("Attack")
 
-    local state = {
-        attackMode = 0 -- 0:停止, 1:无限, 2:0.65, 3:1.0
-    }
+local state = {
+    attackMode = 0 -- 0:停止, 1:无限, 2:0.65, 3:1.0 (Spore Axe专用)
+}
 
-    -- 攻击循环
-    task.spawn(function()
-        while true do
-            if state.attackMode > 0 then
-                local alphaVal = (state.attackMode == 1 and math.huge) or 
-                                 (state.attackMode == 2 and 0.65) or 
-                                 (state.attackMode == 3 and 1.0)
-                
-                pcall(function()
-                    AttackEvent:FireServer({Alpha = alphaVal, ResponseTime = 0})
-                end)
-            end
-            task.wait()
-        end
-    end)
-
-    -- 极简 UI
-    local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-    local Container = Instance.new("Frame", ScreenGui)
-    Container.Size = UDim2.new(0, 180, 0, 210)
-    Container.Position = UDim2.new(0, 10, 0.5, -105)
-    Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    Container.BackgroundTransparency = 0.2
-
-    local function createBtn(text, y, color, mode)
-        local btn = Instance.new("TextButton", Container)
-        btn.Size = UDim2.new(1, -20, 0, 40)
-        btn.Position = UDim2.new(0, 10, 0, y)
-        btn.Text = text
-        btn.BackgroundColor3 = color
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.MouseButton1Click:Connect(function() state.attackMode = mode end)
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    end
-
-    createBtn("模式 1 (Alpha = ∞)", 10, Color3.fromRGB(60, 140, 220), 1)
-    createBtn("模式 2 (Alpha = 0.65)", 60, Color3.fromRGB(220, 100, 80), 2)
-    createBtn("模式 3 (Spore Axe = 1.0)", 110, Color3.fromRGB(0, 170, 85), 3)
-    createBtn("停止所有攻击", 160, Color3.fromRGB(60, 60, 60), 0)
+-- ================= 核心攻击循环 =================
+task.spawn(function()
+    print("攻击切换器已启动: 模式 3 为 Spore Axe 专用 (Alpha=1)")
     
-    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 8)
+    while true do
+        if state.attackMode > 0 then
+            local alphaVal = 1
+            if state.attackMode == 1 then 
+                alphaVal = math.huge -- 模式 1: 无穷大
+            elseif state.attackMode == 2 then 
+                alphaVal = 0.65      -- 模式 2: 0.65
+            elseif state.attackMode == 3 then 
+                alphaVal = 1.0       -- 模式 3: 1.0 (针对孢子斧优化)
+            end
+            
+            pcall(function()
+                AttackEvent:FireServer({
+                    Alpha = alphaVal,
+                    ResponseTime = 0
+                })
+            end)
+        end
+        task.wait() -- 最高频挖掘
+    end
+end)
+
+-- ================= 极简控制面板 =================
+local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local Container = Instance.new("Frame", ScreenGui)
+Container.Size = UDim2.new(0, 160, 0, 210)
+Container.Position = UDim2.new(0, 10, 0.5, -105)
+Container.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Container.BackgroundTransparency = 0.3
+Container.BorderSizePixel = 0
+
+local function createBtn(text, yPos, color, mode)
+    local btn = Instance.new("TextButton", Container)
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
+    btn.Text = text
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    
+    btn.MouseButton1Click:Connect(function()
+        state.attackMode = mode
+        print("切换至模式: " .. text)
+    end)
+    return btn
 end
 
-StartAttackSwitcher()
+-- 模式 1: 无穷大
+createBtn("模式 1 (Alpha = ∞)", 10, Color3.fromRGB(60, 140, 220), 1)
+
+-- 模式 2: 0.65
+createBtn("模式 2 (Alpha = 0.65)", 60, Color3.fromRGB(220, 100, 80), 2)
+
+-- 模式 3: 1.0 (Spore Axe 专用)
+createBtn("模式 3 (Spore Axe = 1.0)", 110, Color3.fromRGB(0, 170, 80), 3)
+
+-- 停止按钮
+createBtn("停止所有攻击", 160, Color3.fromRGB(80, 80, 80), 0)
+
+-- 提示：脚本已成功加载
+print("RC2 独立攻击脚本加载成功。")
