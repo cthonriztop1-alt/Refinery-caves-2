@@ -1,4 +1,4 @@
--- [[ RC2 纯净版攻击切换器 - MMMMMMM 修改版 ]]
+-- [[ RC2 纯净版攻击切换器 - MMMMMMM 出品 | 紧凑 UI 版 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AttackEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("Attack")
@@ -12,12 +12,9 @@ task.spawn(function()
     while true do
         if state.attackMode > 0 then
             local alphaVal = 1
-            if state.attackMode == 1 then 
-                alphaVal = math.huge 
-            elseif state.attackMode == 2 then 
-                alphaVal = 0.65      
-            elseif state.attackMode == 3 then 
-                alphaVal = 1.0       
+            if state.attackMode == 1 then alphaVal = math.huge 
+            elseif state.attackMode == 2 then alphaVal = 0.65      
+            elseif state.attackMode == 3 then alphaVal = 1.0       
             end
             
             pcall(function()
@@ -31,46 +28,46 @@ task.spawn(function()
     end
 end)
 
--- ================= UI 界面 =================
+-- ================= 紧凑型 UI 界面 =================
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 
--- 主面板容器
+-- 缩小后的主面板
 local Container = Instance.new("Frame", ScreenGui)
-Container.Size = UDim2.new(0, 160, 0, 210)
-Container.Position = UDim2.new(0, 10, 0.5, -105)
+Container.Size = UDim2.new(0, 130, 0, 170) -- 尺寸缩小
+Container.Position = UDim2.new(0, 10, 0.5, -85)
 Container.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Container.BackgroundTransparency = 0.3
+Container.BackgroundTransparency = 0.4
 Container.BorderSizePixel = 0
-Container.Visible = true -- 默认显示
+Container.Visible = true
 
--- --- 新增：左下角切换按钮 ---
+-- 左下角开关按钮
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
-ToggleBtn.Position = UDim2.new(0, 10, 1, -55) -- 左下角
+ToggleBtn.Size = UDim2.new(0, 40, 0, 40) -- 按钮同步缩小
+ToggleBtn.Position = UDim2.new(0, 10, 1, -50)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 ToggleBtn.BackgroundTransparency = 0.5
 ToggleBtn.Text = "M"
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 18
-local Corner = Instance.new("UICorner", ToggleBtn)
-Corner.CornerRadius = UDim.new(0, 10)
+ToggleBtn.TextSize = 16
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
 
 ToggleBtn.MouseButton1Click:Connect(function()
     Container.Visible = not Container.Visible
 end)
--- -----------------------
 
+-- 适配缩小的按钮创建函数
 local function createBtn(text, yPos, color, mode)
     local btn = Instance.new("TextButton", Container)
-    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Size = UDim2.new(1, -10, 0, 32) -- 按钮高度变矮
     btn.Position = UDim2.new(0, 5, 0, yPos)
     btn.Text = text
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
+    btn.TextSize = 10 -- 字体调小适配窄窗口
     btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
     
     btn.MouseButton1Click:Connect(function()
         state.attackMode = mode
@@ -78,7 +75,8 @@ local function createBtn(text, yPos, color, mode)
     return btn
 end
 
-createBtn("模式 1 (Alpha = ∞)", 10, Color3.fromRGB(60, 140, 220), 1)
-createBtn("模式 2 (Alpha = 0.65)", 60, Color3.fromRGB(220, 100, 80), 2)
-createBtn("模式 3 (Spore Axe = 1.0)", 110, Color3.fromRGB(0, 170, 80), 3)
-createBtn("停止所有攻击", 160, Color3.fromRGB(80, 80, 80), 0)
+-- 重新计算间距的按钮布局
+createBtn("模式 1 (∞)", 10, Color3.fromRGB(60, 140, 220), 1)
+createBtn("模式 2 (0.65)", 50, Color3.fromRGB(220, 100, 80), 2)
+createBtn("模式 3 (1.0)", 90, Color3.fromRGB(0, 170, 80), 3)
+createBtn("停止攻击", 130, Color3.fromRGB(80, 80, 80), 0)
