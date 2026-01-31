@@ -34,7 +34,7 @@ local ESPTab  = Window:CreateTab("透视", 4483362458)
 local FishTab = Window:CreateTab("钓鱼", 4483362458)
 local ToolTab = Window:CreateTab("工具", 4483362458)
 
--- ================= 1. 黑洞逻辑 (保持不变) =================
+-- ================= 1. 黑洞逻辑 =================
 local RangeVisual = Instance.new("Part")
 RangeVisual.Anchored = true; RangeVisual.CanCollide = false; RangeVisual.Material = Enum.Material.ForceField
 RangeVisual.Color = Color3.fromRGB(255, 0, 0); RangeVisual.Transparency = 1; RangeVisual.Parent = workspace
@@ -50,12 +50,7 @@ local function releaseAll()
             if p:FindFirstChild("EliteGyro") then p.EliteGyro:Destroy() end
             p.AssemblyLinearVelocity = Vector3.zero
             p.AssemblyAngularVelocity = Vector3.zero
-            task.delay(0.1, function()
-                if p and p.Parent then
-                    p.CanCollide = true
-                    pcall(function() p:SetNetworkOwner(LocalPlayer) end)
-                end
-            end)
+            p.CanCollide = true
         end
     end
     table.clear(state.lockedParts)
@@ -97,7 +92,7 @@ task.spawn(function()
     end
 end)
 
--- ================= 2. 精准 ESP (限定 WorldSpawn) =================
+-- ================= 2. 精准 ESP (修改: Zan Flower -> Flower Grass) =================
 local ESP_COLORS = {
     Meteorite = Color3.fromRGB(255,0,0), Wildcore = Color3.fromRGB(255,0,255),
     Abyssalite = Color3.fromRGB(60,60,60), Obsidian = Color3.fromRGB(90,0,130),
@@ -105,7 +100,7 @@ local ESP_COLORS = {
     Volcanium = Color3.fromRGB(255,80,0), Nightshade = Color3.fromRGB(130,0,255),
     Glacial = Color3.fromRGB(0,255,255), ["Atlas Tree"] = Color3.fromRGB(150,220,255),
     ["Ancient Rune"] = Color3.fromRGB(255,255,255), Crimsone = Color3.fromRGB(220,20,60),
-    ["Zan Flower"] = Color3.fromRGB(180, 255, 100)
+    ["Flower Grass"] = Color3.fromRGB(180, 255, 100) -- 这里已修改
 }
 
 local ESP_GLOBAL = { Meteorite = true, Orewood = true, ["Pink Diamond"] = true, Glacial = true }
@@ -123,7 +118,6 @@ task.spawn(function()
     while true do
         if state.espEnabled then
             local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            -- 核心修改：只在 Workspace.WorldSpawn 中进行递归搜索
             local spawnArea = workspace:FindFirstChild("WorldSpawn")
             if spawnArea and hrp then
                 for _, obj in ipairs(spawnArea:GetDescendants()) do
@@ -142,7 +136,6 @@ task.spawn(function()
                 end
             end
         else
-            -- 清理逻辑遍历全图确保清理干净
             for _, v in ipairs(workspace:GetDescendants()) do 
                 if v.Name == "EliteESP" or v.Name == "EliteESPTag" then v:Destroy() end 
             end
@@ -152,7 +145,6 @@ task.spawn(function()
 end)
 
 -- ================= 3. 自动钓鱼 & UI 绑定 =================
--- (保持原有逻辑...)
 local ChangeFishPull = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("ChangeFishPull")
 task.spawn(function()
     while task.wait() do
