@@ -1,22 +1,20 @@
--- [[ Elite Controller - V10.45：V10.17 核心复刻 | 暴力对齐 | 纯净透视 ]]
+-- [[ Elite Controller - V10.45 | 修复 ESP | 只描边 | 距离规则 ]]
 
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/cthonriztop1-alt/Refinery-caves-2/9389a2b5c8233ecdb08d474ed70c718031de5295/%E6%8C%96%E6%8E%98%E5%8A%9B%E5%BA%A6"))()
-end)
-
+-- ================= Services =================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- ================= UI 界面 =================
+-- ================= UI =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Elite Controller V10.45",
-    LoadingTitle = "V10.17 物理逻辑完全回归",
-    LoadingSubtitle = "瞬间锁死 | 暴力对齐 | 全图透视",
+    LoadingTitle = "ESP 修复完成",
+    LoadingSubtitle = "只描边 | 距离控制 | 全图矿物",
     ConfigurationSaving = { Enabled = false }
 })
 
@@ -25,6 +23,7 @@ local ESPTab  = Window:CreateTab("透视", 4483362458)
 local FishTab = Window:CreateTab("钓鱼", 4483362458)
 local ToolTab = Window:CreateTab("工具", 4483362458)
 
+-- ================= 状态 =================
 local state = {
     bhActive = false,
     radius = 35,
@@ -37,32 +36,31 @@ local state = {
 
 local BhToggle
 
--- ================= 视觉特效：红色正方体框 (V10.17) =================
+-- ================= 黑洞视觉 =================
 local RangeVisual = Instance.new("Part")
-RangeVisual.Name = "Elite_VisualBox"
 RangeVisual.Anchored = true
 RangeVisual.CanCollide = false
 RangeVisual.Material = Enum.Material.ForceField
-RangeVisual.Color = Color3.fromRGB(255, 0, 0)
+RangeVisual.Color = Color3.fromRGB(255,0,0)
 RangeVisual.Transparency = 1
 RangeVisual.Parent = workspace
 
--- ================= 核心：暴力释放与停稳 =================
+-- ================= 释放 =================
 local function releaseAll()
     state.bhActive = false
     state.lockPosition = nil
     RangeVisual.Transparency = 1
     if BhToggle then BhToggle:Set(false) end
-    for p, _ in pairs(state.lockedParts) do
+    for p,_ in pairs(state.lockedParts) do
         if p and p.Parent then
             if p:FindFirstChild("EliteForce") then p.EliteForce:Destroy() end
             if p:FindFirstChild("EliteGyro") then p.EliteGyro:Destroy() end
             p.AssemblyLinearVelocity = Vector3.zero
             p.AssemblyAngularVelocity = Vector3.zero
-            task.delay(0.1, function()
-                if p and p.Parent then 
+            task.delay(0.1,function()
+                if p and p.Parent then
                     p.CanCollide = true
-                    pcall(function() p:SetNetworkOwner(LocalPlayer) end) 
+                    pcall(function() p:SetNetworkOwner(LocalPlayer) end)
                 end
             end)
         end
@@ -70,22 +68,25 @@ local function releaseAll()
     table.clear(state.lockedParts)
 end
 
--- ================= 自动钓鱼 (原始逻辑同步) =================
-local ChangeFishPull = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("ChangeFishPull")
+-- ================= 自动钓鱼 =================
+local ChangeFishPull = ReplicatedStorage
+    :WaitForChild("Events")
+    :WaitForChild("Tools")
+    :WaitForChild("ChangeFishPull")
+
 task.spawn(function()
-    while task.wait() do 
+    while task.wait() do
         if state.fishEnabled then
             local gui = PlayerGui:FindFirstChild("UserGui")
-            local catchFrame = gui and gui:FindFirstChild("CatchFrame")
-            if catchFrame and catchFrame.Visible then
-                local fish = catchFrame:FindFirstChild("Fish")
+            local cf = gui and gui:FindFirstChild("CatchFrame")
+            if cf and cf.Visible then
+                local fish = cf:FindFirstChild("Fish")
                 if fish then
-                    local rotation = math.floor(fish.Rotation % 360)
-                    if rotation < 0 then rotation = rotation + 360 end
-                    if rotation == 0 then ChangeFishPull:FireServer({Side = "Left"})
-                    elseif rotation == 90 then ChangeFishPull:FireServer({Side = "Top"})
-                    elseif rotation == 180 then ChangeFishPull:FireServer({Side = "Right"})
-                    elseif rotation == 270 then ChangeFishPull:FireServer({Side = "Bottom"})
+                    local r = (math.floor(fish.Rotation % 360) + 360) % 360
+                    if r == 0 then ChangeFishPull:FireServer({Side="Left"})
+                    elseif r == 90 then ChangeFishPull:FireServer({Side="Top"})
+                    elseif r == 180 then ChangeFishPull:FireServer({Side="Right"})
+                    elseif r == 270 then ChangeFishPull:FireServer({Side="Bottom"})
                     end
                 end
             end
@@ -93,27 +94,25 @@ task.spawn(function()
     end
 end)
 
--- ================= 黑洞：复刻 V10.17 暴力算法 =================
-
--- 1. 扫描零件 (优化掉帧：保持灵敏且低载)
+-- ================= 黑洞扫描 =================
 task.spawn(function()
     while true do
         task.wait(0.12)
         local char = LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp and state.bhActive then
-            state.lockPosition = (hrp.CFrame * CFrame.new(0, 0, -state.distance)).Position
-            
+            state.lockPosition = (hrp.CFrame * CFrame.new(0,0,-state.distance)).Position
             RangeVisual.Transparency = 0.7
-            RangeVisual.Size = Vector3.one * (state.radius * 2)
+            RangeVisual.Size = Vector3.one * (state.radius*2)
             RangeVisual.CFrame = hrp.CFrame
-            
+
             local op = OverlapParams.new()
-            op.FilterDescendantsInstances = {char, RangeVisual}
+            op.FilterDescendantsInstances = {char,RangeVisual}
             op.FilterType = Enum.RaycastFilterType.Exclude
-            local parts = workspace:GetPartBoundsInBox(hrp.CFrame, RangeVisual.Size, op)
-            for _, p in ipairs(parts) do
-                if p:IsA("BasePart") and not p.Anchored and not p.Parent:FindFirstChildOfClass("Humanoid") then
+
+            for _,p in ipairs(workspace:GetPartBoundsInBox(hrp.CFrame,RangeVisual.Size,op)) do
+                if p:IsA("BasePart") and not p.Anchored
+                   and not p.Parent:FindFirstChildOfClass("Humanoid") then
                     if not state.lockedParts[p] then
                         state.lockedParts[p] = true
                         p.CanCollide = false
@@ -127,83 +126,146 @@ task.spawn(function()
     end
 end)
 
--- 2. 暴力物理：瞬间对齐 (Heartbeat)
+-- ================= 黑洞物理 =================
 RunService.Heartbeat:Connect(function()
     if not state.lockPosition then return end
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    
-    -- V10.17 核心：暴力角度校准，所有物体吸附时保持一致朝向
-    local alignRot = CFrame.lookAt(state.lockPosition, state.lockPosition + hrp.CFrame.LookVector)
-    
-    for p, _ in pairs(state.lockedParts) do
+
+    local alignRot = CFrame.lookAt(
+        state.lockPosition,
+        state.lockPosition + hrp.CFrame.LookVector
+    )
+
+    for p,_ in pairs(state.lockedParts) do
         if p and p.Parent and not p.Anchored then
-            -- 高 P 值 BodyPosition (瞬间锁死坐标)
-            local bp = p:FindFirstChild("EliteForce") or Instance.new("BodyPosition", p)
-            bp.Name = "EliteForce"; bp.MaxForce = Vector3.one * 9e9; bp.P = 25000; bp.D = 400; bp.Position = state.lockPosition
-            
-            -- 高 P 值 BodyGyro (暴力防止乱飞)
-            local bg = p:FindFirstChild("EliteGyro") or Instance.new("BodyGyro", p)
-            bg.Name = "EliteGyro"; bg.MaxTorque = Vector3.one * 9e9; bg.P = 15000; bg.D = 100; bg.CFrame = alignRot
+            local bp = p:FindFirstChild("EliteForce") or Instance.new("BodyPosition",p)
+            bp.Name="EliteForce"
+            bp.MaxForce=Vector3.one*9e9
+            bp.P=25000
+            bp.D=400
+            bp.Position=state.lockPosition
+
+            local bg = p:FindFirstChild("EliteGyro") or Instance.new("BodyGyro",p)
+            bg.Name="EliteGyro"
+            bg.MaxTorque=Vector3.one*9e9
+            bg.P=15000
+            bg.D=100
+            bg.CFrame=alignRot
         else
-            state.lockedParts[p] = nil
+            state.lockedParts[p]=nil
         end
     end
 end)
 
--- ================= 精准透视：全图扫描清单 =================
-local ESP_Targets = {
-    ["Meteorite"] = Color3.fromRGB(255, 0, 0), ["Weeping Soul"] = Color3.fromRGB(0, 150, 255),
-    ["Wildcore"] = Color3.fromRGB(255, 0, 255), ["Volcanium"] = Color3.fromRGB(255, 80, 0),
-    ["Abyssalite"] = Color3.fromRGB(50, 50, 50), ["Nightshade"] = Color3.fromRGB(130, 0, 255),
-    ["Obsidian"] = Color3.fromRGB(80, 0, 120), ["Glacial"] = Color3.fromRGB(0, 255, 255),
-    ["Orewood"] = Color3.fromRGB(255, 215, 0), ["Atlas Tree"] = Color3.fromRGB(150, 220, 255),
-    ["Odd Stone"] = Color3.fromRGB(180, 180, 180), ["Ancient Rune"] = Color3.fromRGB(255, 255, 255),
-    ["Pink Diamond"] = Color3.fromRGB(255, 105, 180), ["Crimsone"] = Color3.fromRGB(220, 20, 60),
-    ["Magma"] = Color3.fromRGB(255, 69, 0)
+-- ================= ESP（修复版） =================
+
+local ESP_COLORS = {
+    Meteorite = Color3.fromRGB(255,0,0),
+    Wildcore = Color3.fromRGB(255,0,255),
+    Abyssalite = Color3.fromRGB(60,60,60),
+    Obsidian = Color3.fromRGB(90,0,130),
+    Orewood = Color3.fromRGB(255,215,0),
+    ["Pink Diamond"] = Color3.fromRGB(255,105,180),
+    Volcanium = Color3.fromRGB(255,80,0),
+    Nightshade = Color3.fromRGB(130,0,255),
+    Glacial = Color3.fromRGB(0,255,255),
+    ["Atlas Tree"] = Color3.fromRGB(150,220,255),
+    ["Ancient Rune"] = Color3.fromRGB(255,255,255),
+    Crimsone = Color3.fromRGB(220,20,60)
 }
+
+local ESP_GLOBAL = {
+    Meteorite = true,
+    Orewood = true,
+    ["Pink Diamond"] = true,
+    Glacial = true
+}
+
+local ESP_DISTANCE = 1500
+
+local function createESP(model, name, color)
+    if model:FindFirstChild("EliteESP") then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "EliteESP"
+    hl.Adornee = model
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillTransparency = 1
+    hl.OutlineTransparency = 0
+    hl.OutlineColor = color
+    hl.Parent = model
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "EliteESPTag"
+    bb.Size = UDim2.new(0,120,0,30)
+    bb.AlwaysOnTop = true
+    bb.StudsOffset = Vector3.new(0,2,0)
+    bb.Parent = model
+
+    local txt = Instance.new("TextLabel", bb)
+    txt.Size = UDim2.fromScale(1,1)
+    txt.BackgroundTransparency = 1
+    txt.Text = name
+    txt.TextColor3 = color
+    txt.TextStrokeTransparency = 0
+    txt.Font = Enum.Font.GothamBold
+    txt.TextSize = 14
+end
 
 task.spawn(function()
     while true do
         if state.espEnabled then
-            local items = workspace:GetDescendants()
-            for i, obj in ipairs(items) do
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            for _,obj in ipairs(workspace:GetDescendants()) do
                 if not state.espEnabled then break end
-                local color = ESP_Targets[obj.Name]
-                if color then
-                    local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                    if part and not part:FindFirstChild("EliteTag") then
-                        local hl = Instance.new("Highlight", part); hl.FillColor = color; hl.FillTransparency = 0.4
-                        local bb = Instance.new("BillboardGui", part); bb.Name = "EliteTag"; bb.Size = UDim2.new(0,80,0,30); bb.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", bb); txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.Text = obj.Name; txt.TextColor3 = color; txt.TextSize = 13; txt.Font = "GothamBold"; txt.TextStrokeTransparency = 0
+                local color = ESP_COLORS[obj.Name]
+                if color and hrp then
+                    local model = obj:IsA("Model") and obj or obj.Parent
+                    local root = model and model:FindFirstChildWhichIsA("BasePart")
+                    if root then
+                        local dist = (root.Position - hrp.Position).Magnitude
+                        if ESP_GLOBAL[obj.Name] or dist <= ESP_DISTANCE then
+                            createESP(model, obj.Name, color)
+                        end
                     end
                 end
-                if i % 150 == 0 then task.wait() end -- 极致负载控制
             end
         end
-        task.wait(5)
+        task.wait(4)
     end
 end)
 
--- ================= 菜单交互 =================
-BhToggle = VoidTab:CreateToggle({Name = "暴力黑洞 (F)", CurrentValue = false, Callback = function(v) state.bhActive = v end})
-VoidTab:CreateSlider({Name = "半径 (红色正方体)", Range = {5, 500}, Increment = 5, CurrentValue = 35, Callback = function(v) state.radius = v end})
-VoidTab:CreateSlider({Name = "吸附距离", Range = {0, 100}, Increment = 2, CurrentValue = 15, Callback = function(v) state.distance = v end})
-VoidTab:CreateButton({Name = "彻底释放 (C)", Callback = releaseAll})
+-- ================= 菜单 =================
+BhToggle = VoidTab:CreateToggle({Name="暴力黑洞 (F)",CurrentValue=false,Callback=function(v) state.bhActive=v end})
+VoidTab:CreateSlider({Name="半径",Range={5,500},Increment=5,CurrentValue=35,Callback=function(v) state.radius=v end})
+VoidTab:CreateSlider({Name="吸附距离",Range={0,100},Increment=2,CurrentValue=15,Callback=function(v) state.distance=v end})
+VoidTab:CreateButton({Name="彻底释放 (C)",Callback=releaseAll})
 
-ESPTab:CreateToggle({Name = "精准全图透视", CurrentValue = false, Callback = function(v) state.espEnabled = v end})
-FishTab:CreateToggle({Name = "原始逻辑钓鱼", CurrentValue = false, Callback = function(v) state.fishEnabled = v end})
+ESPTab:CreateToggle({Name="精准透视（修复）",CurrentValue=false,Callback=function(v) state.espEnabled=v end})
+FishTab:CreateToggle({Name="原始逻辑钓鱼",CurrentValue=false,Callback=function(v) state.fishEnabled=v end})
 
-ToolTab:CreateButton({Name = "加载飞行脚本", Callback = function() 
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))() 
-end})
-ToolTab:CreateButton({Name = "Infinite Yield", Callback = function() 
-    loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-v64-90090"))() 
-end})
+ToolTab:CreateButton({
+    Name="加载飞行脚本",
+    Callback=function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+    end
+})
+ToolTab:CreateButton({
+    Name="Infinite Yield",
+    Callback=function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-v64-90090"))()
+    end
+})
 
--- 快捷键 (移除了 Q 键冲突)
-UserInputService.InputBegan:Connect(function(io, g)
+-- ================= 快捷键 =================
+UserInputService.InputBegan:Connect(function(io,g)
     if g then return end
-    if io.KeyCode == Enum.KeyCode.F then state.bhActive = not state.bhActive; BhToggle:Set(state.bhActive)
-    elseif io.KeyCode == Enum.KeyCode.C then releaseAll() end
+    if io.KeyCode==Enum.KeyCode.F then
+        state.bhActive = not state.bhActive
+        BhToggle:Set(state.bhActive)
+    elseif io.KeyCode==Enum.KeyCode.C then
+        releaseAll()
+    end
 end)
