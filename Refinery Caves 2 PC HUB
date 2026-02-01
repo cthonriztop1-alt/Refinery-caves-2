@@ -1,5 +1,7 @@
--- [[ Elite Controller - V10.52 | MMMMMMM出品 | 路径锁定: WorldSpawn ]]
+-- [[ MMMMMMM 出品 | 挖掘力度脚本加载 ]]
+loadstring(game:HttpGet("https://raw.githubusercontent.com/cthonriztop1-alt/Refinery-caves-2/bd6427e7ba6017c6b1ddbbe9591fd915189107d4/%E6%8C%96%E6%8E%98%E5%8A%9B%E5%BA%A6"))()
 
+-- [[ Elite Controller - V10.52 | MMMMMMM出品 | 路径锁定: WorldSpawn ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -25,7 +27,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Elite Controller V10.52",
     LoadingTitle = "MMMMMMM出品",
-    LoadingSubtitle = "ESP 已锁定 WorldSpawn 路径",
+    LoadingSubtitle = "已集成挖掘力度 & Flower Grass",
     ConfigurationSaving = { Enabled = false }
 })
 
@@ -34,7 +36,7 @@ local ESPTab  = Window:CreateTab("透视", 4483362458)
 local FishTab = Window:CreateTab("钓鱼", 4483362458)
 local ToolTab = Window:CreateTab("工具", 4483362458)
 
--- ================= 1. 黑洞逻辑 =================
+-- ================= 1. 黑洞逻辑 (防吸人过滤) =================
 local RangeVisual = Instance.new("Part")
 RangeVisual.Anchored = true; RangeVisual.CanCollide = false; RangeVisual.Material = Enum.Material.ForceField
 RangeVisual.Color = Color3.fromRGB(255, 0, 0); RangeVisual.Transparency = 1; RangeVisual.Parent = workspace
@@ -63,7 +65,6 @@ RunService.Heartbeat:Connect(function()
     local alignRot = CFrame.lookAt(state.lockPosition, state.lockPosition + hrp.CFrame.LookVector)
     for p, _ in pairs(state.lockedParts) do
         if p and p.Parent and not p.Anchored then
-            p.CanCollide = false
             local bp = p:FindFirstChild("EliteForce") or Instance.new("BodyPosition", p)
             bp.Name = "EliteForce"; bp.MaxForce = Vector3.one * 9e9; bp.P = 15000; bp.D = 600; bp.Position = state.lockPosition
             local bg = p:FindFirstChild("EliteGyro") or Instance.new("BodyGyro", p)
@@ -82,7 +83,9 @@ task.spawn(function()
             RangeVisual.Transparency = 0.7; RangeVisual.Size = Vector3.one * (state.radius * 2); RangeVisual.CFrame = hrp.CFrame
             local op = OverlapParams.new(); op.FilterDescendantsInstances = {char, RangeVisual}; op.FilterType = Enum.RaycastFilterType.Exclude
             for _, p in ipairs(workspace:GetPartBoundsInBox(hrp.CFrame, RangeVisual.Size, op)) do
-                if p:IsA("BasePart") and not p.Anchored and not p.Parent:FindFirstChildOfClass("Humanoid") then
+                -- 严格过滤：排除所有玩家和NPC
+                local isChar = p.Parent:FindFirstChildOfClass("Humanoid") or (p.Parent.Parent and p.Parent.Parent:FindFirstChildOfClass("Humanoid"))
+                if p:IsA("BasePart") and not p.Anchored and not isChar then
                     if not state.lockedParts[p] then
                         state.lockedParts[p] = true; p.CanCollide = false; pcall(function() p:SetNetworkOwner(nil) end)
                     end
@@ -92,7 +95,7 @@ task.spawn(function()
     end
 end)
 
--- ================= 2. 精准 ESP (修改: Zan Flower -> Flower Grass) =================
+-- ================= 2. 精准 ESP (Flower Grass) =================
 local ESP_COLORS = {
     Meteorite = Color3.fromRGB(255,0,0), Wildcore = Color3.fromRGB(255,0,255),
     Abyssalite = Color3.fromRGB(60,60,60), Obsidian = Color3.fromRGB(90,0,130),
@@ -100,7 +103,7 @@ local ESP_COLORS = {
     Volcanium = Color3.fromRGB(255,80,0), Nightshade = Color3.fromRGB(130,0,255),
     Glacial = Color3.fromRGB(0,255,255), ["Atlas Tree"] = Color3.fromRGB(150,220,255),
     ["Ancient Rune"] = Color3.fromRGB(255,255,255), Crimsone = Color3.fromRGB(220,20,60),
-    ["Flower Grass"] = Color3.fromRGB(180, 255, 100) -- 这里已修改
+    ["Flower Grass"] = Color3.fromRGB(180, 255, 100)
 }
 
 local ESP_GLOBAL = { Meteorite = true, Orewood = true, ["Pink Diamond"] = true, Glacial = true }
@@ -144,7 +147,7 @@ task.spawn(function()
     end
 end)
 
--- ================= 3. 自动钓鱼 & UI 绑定 =================
+-- ================= 3. 自动钓鱼 =================
 local ChangeFishPull = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Tools"):WaitForChild("ChangeFishPull")
 task.spawn(function()
     while task.wait() do
@@ -166,12 +169,13 @@ task.spawn(function()
     end
 end)
 
+-- ================= 4. UI 绑定 =================
 BhToggle = VoidTab:CreateToggle({Name="暴力黑洞 (F)", CurrentValue=false, Callback=function(v) state.bhActive=v end})
 VoidTab:CreateSlider({Name="半径", Range={5,500}, Increment=5, CurrentValue=35, Callback=function(v) state.radius=v end})
 VoidTab:CreateSlider({Name="吸附距离", Range={0,100}, Increment=2, CurrentValue=15, Callback=function(v) state.distance=v end})
 VoidTab:CreateButton({Name="彻底释放 (C)", Callback=releaseAll})
 
-ESPTab:CreateToggle({Name="精准透视 (WorldSpawn)", CurrentValue=false, Callback=function(v) state.espEnabled=v end})
+ESPTab:CreateToggle({Name="精准透视 (Flower Grass)", CurrentValue=false, Callback=function(v) state.espEnabled=v end})
 FishTab:CreateToggle({Name="自动收线", CurrentValue=false, Callback=function(v) state.fishEnabled=v end})
 
 ToolTab:CreateButton({Name="飞行脚本", Callback=function() loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))() end})
